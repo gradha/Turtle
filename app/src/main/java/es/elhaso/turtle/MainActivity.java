@@ -2,9 +2,12 @@ package es.elhaso.turtle;
 
 import android.Manifest;
 import android.annotation.TargetApi;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.media.MediaScannerConnection;
+import android.net.Uri;
 import android.os.Build;
+import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
@@ -21,11 +24,13 @@ import static junit.framework.Assert.assertNotNull;
 
 public class MainActivity
     extends AppCompatActivity
+    implements View.OnClickListener
 {
     private static final String TAG = "MainActivity";
     private static final int PERMISSION_REQUEST = 333;
 
     @Nullable TextView mInfoText;
+    boolean mGoToPrefs;
 
     @Override protected void onCreate(Bundle savedInstanceState)
     {
@@ -38,6 +43,9 @@ public class MainActivity
         super.onStart();
         mInfoText = (TextView) findViewById(R.id.hello_message);
         assertNotNull(mInfoText);
+
+        Button button = (Button) findViewById(R.id.grant_button);
+        button.setOnClickListener(this);
     }
 
     @Override protected void onStop()
@@ -51,6 +59,7 @@ public class MainActivity
         super.onResume();
         assertNotNull(mInfoText);
 
+        Button button = (Button) findViewById(R.id.grant_button);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             // Hmm… on newer androids ask for cookies with chocolate.
             // http://stackoverflow.com/a/32298494/172690
@@ -58,44 +67,16 @@ public class MainActivity
                 .READ_EXTERNAL_STORAGE);
             if (PackageManager.PERMISSION_GRANTED != permission) {
 
-                /*
-                if (PackageManager.PERMISSION_DENIED == permission) {
-                    mInfoText.setText("You sucker, you disabled permissions, " +
-                        "how am I to read files then! Now you have to go into" +
-                        " system settings, app permissions and restore them " +
-                        "or I won't work.");
-                    return;
-                }
-                */
+                mInfoText.setText("You need to give me permissions to " +
+                    "advertise your files");
 
-                if (shouldShowRequestPermissionRationale(Manifest.permission
-                    .READ_EXTERNAL_STORAGE)) {
-
-                    mInfoText.setText("File permissions are to be granted");
-                    Button button = (Button) findViewById(R.id.grant_button);
-                    button.setVisibility(View.VISIBLE);
-                    button.setOnClickListener(new View.OnClickListener()
-                    {
-                        @TargetApi(Build.VERSION_CODES.M) @Override public
-                        void onClick(View view)
-                        {
-                            requestPermissions(new String[]{Manifest
-                                .permission.READ_EXTERNAL_STORAGE},
-                                PERMISSION_REQUEST);
-                        }
-                    });
-
-                    return;
-                }
-
-                requestPermissions(new String[]{
-                    Manifest.permission.READ_EXTERNAL_STORAGE},
-                    PERMISSION_REQUEST);
+                button.setVisibility(View.VISIBLE);
 
                 return;
             }
         }
 
+        button.setVisibility(View.GONE);
         mInfoText.setText("Running…");
         mInfoText.postDelayed(new Runnable()
         {
@@ -106,17 +87,52 @@ public class MainActivity
         }, 10);
     }
 
-    @Override public void onRequestPermissionsResult(int requestCode,
+    @Override public void onClick(View view)
+    {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return;
+        }
+
+        if (mGoToPrefs) {
+            Intent intent = new Intent();
+            intent.setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+            Uri uri = Uri.fromParts("package", getPackageName(), null);
+            intent.setData(uri);
+            startActivity(intent);
+        } else {
+            requestPermissions(new String[]{Manifest.permission
+                .READ_EXTERNAL_STORAGE}, PERMISSION_REQUEST);
+        }
+    }
+
+    @TargetApi(Build.VERSION_CODES.M) @Override
+    public void onRequestPermissionsResult(int requestCode,
         @NonNull String[] permissions,
         @NonNull int[] grantResults)
     {
         super.onRequestPermissionsResult(requestCode, permissions,
             grantResults);
 
-        if (PERMISSION_REQUEST == requestCode && grantResults[0] ==
-            PackageManager.PERMISSION_GRANTED) {
+        if (PERMISSION_REQUEST != requestCode) {
+            return;
+        }
 
+        // http://stackoverflow.com/a/33514501/172690
+        if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             scanFiles();
+        } else {
+            if (!shouldShowRequestPermissionRationale(Manifest.permission
+                .READ_EXTERNAL_STORAGE)) {
+
+                Button button = (Button) findViewById(R.id.grant_button);
+                if (null == button) {
+                    return;
+                }
+                button.setVisibility(View.VISIBLE);
+                button.setText("Permissions denied for good, open app " +
+                    "settings to change");
+                mGoToPrefs = true;
+            }
         }
     }
 
