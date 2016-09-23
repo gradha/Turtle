@@ -1,17 +1,18 @@
 package es.elhaso.turtle;
 
 import android.Manifest;
-import android.annotation.TargetApi;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -28,6 +29,7 @@ public class MainActivity
 {
     private static final String TAG = "MainActivity";
     private static final int PERMISSION_REQUEST = 333;
+    static final String DIR_NAME = "cheetah_sync";
 
     @Nullable TextView mInfoText;
     boolean mGoToPrefs;
@@ -60,20 +62,19 @@ public class MainActivity
         assertNotNull(mInfoText);
 
         Button button = (Button) findViewById(R.id.grant_button);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            // Hmm… on newer androids ask for cookies with chocolate.
-            // http://stackoverflow.com/a/32298494/172690
-            final int permission = checkSelfPermission(Manifest.permission
-                .READ_EXTERNAL_STORAGE);
-            if (PackageManager.PERMISSION_GRANTED != permission) {
 
-                mInfoText.setText("You need to give me permissions to " +
-                    "advertise your files");
+        // Hmm… on newer androids ask for cookies with chocolate.
+        // http://stackoverflow.com/a/32298494/172690
+        final int permission = ContextCompat.checkSelfPermission(this,
+            Manifest.permission.READ_EXTERNAL_STORAGE);
+        if (PackageManager.PERMISSION_GRANTED != permission) {
 
-                button.setVisibility(View.VISIBLE);
+            mInfoText.setText("You need to give me permissions to " +
+                "advertise your files");
 
-                return;
-            }
+            button.setVisibility(View.VISIBLE);
+
+            return;
         }
 
         button.setVisibility(View.GONE);
@@ -105,8 +106,7 @@ public class MainActivity
         }
     }
 
-    @TargetApi(Build.VERSION_CODES.M) @Override
-    public void onRequestPermissionsResult(int requestCode,
+    @Override public void onRequestPermissionsResult(int requestCode,
         @NonNull String[] permissions,
         @NonNull int[] grantResults)
     {
@@ -121,8 +121,8 @@ public class MainActivity
         if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             scanFiles();
         } else {
-            if (!shouldShowRequestPermissionRationale(Manifest.permission
-                .READ_EXTERNAL_STORAGE)) {
+            if (!ActivityCompat.shouldShowRequestPermissionRationale(this,
+                Manifest.permission.READ_EXTERNAL_STORAGE)) {
 
                 Button button = (Button) findViewById(R.id.grant_button);
                 if (null == button) {
@@ -139,8 +139,17 @@ public class MainActivity
     void scanFiles()
     {
         assertNotNull(mInfoText);
-        File dir = new File(getExternalStorageDirectory(), "cheetah_sync");
-        mInfoText.setText("Dir exists? " + dir.exists());
+        File dir = new File(getExternalStorageDirectory(), DIR_NAME);
+        final boolean dirExists = dir.exists();
+        mInfoText.setText("Dir " + DIR_NAME + " exists? " + dirExists);
+
+        if (!dirExists) {
+            mInfoText.setText("Dir " + DIR_NAME + " does not exists. You " +
+                "might want to change it and recompile the app or create the " +
+                "directory");
+            return;
+        }
+
         int found = 0;
         for (File file : dir.listFiles()) {
             Log.d(TAG, "Found " + file.getAbsolutePath());
