@@ -98,3 +98,5 @@ nimcache/
 # Extra Android Studio files.
 *.iml
 .idea/
+
+*.html

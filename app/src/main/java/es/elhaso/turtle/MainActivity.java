@@ -88,6 +88,15 @@ public class MainActivity
         }, 10);
     }
 
+    /**
+     * Does a different action depending on the permission request state.
+     *
+     * For the first run we don't know if the permissions were granted, so we
+     * just ask for them. But if those fail, the
+     * {@link #onRequestPermissionsResult(int, String[], int[])} will set the
+     * {@link #mGoToPrefs} flag to true, which changes the behaviour to open
+     * the system app preferences.
+     */
     @Override public void onClick(View view)
     {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
@@ -106,6 +115,18 @@ public class MainActivity
         }
     }
 
+    /**
+     * New permission code, dealing with results and such.
+     *
+     * If the permission was granted, scan immediately the files (otherwise
+     * they will be scanned on activity resume).
+     * If it wasn't, check if we should show the request permissions. If so,
+     * it means that the user has not denied us *forever alone*, in which
+     * case the permission request button just ask for the permissions. But
+     * if we are forever alone, we need to set the button to open app
+     * preferences, since asking for permissions in the forever alone state
+     * doesn't do anything.
+     */
     @Override public void onRequestPermissionsResult(int requestCode,
         @NonNull String[] permissions,
         @NonNull int[] grantResults)
